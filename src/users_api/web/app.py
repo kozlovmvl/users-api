@@ -1,8 +1,14 @@
 from litestar import Litestar
 
-from users_api.web.settings import settings
+from users_api.web.di import create_pg_sessionmaker
+from users_api.web.handlers import PasswordController, UserController
 
-litestar = Litestar(
-    route_handlers=[],
-    debug=settings.DEBUG,
+app = Litestar(
+    route_handlers=[
+        UserController,
+        PasswordController,
+    ],
+    # debug=settings.debug,
+    debug=True,
+    on_startup=[create_pg_sessionmaker],
 )

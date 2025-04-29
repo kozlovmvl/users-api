@@ -16,6 +16,8 @@ litestar = "^2.15.2"
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.11.6"
 pre-commit = "^4.2.0"
+pytest-mock = "^3.14.0"
+uvicorn = "^0.34.2"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3.5"
@@ -23,6 +25,10 @@ pytest-asyncio = "^0.26.0"
 
 [tool.ruff]
 extend-select = ["I"]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 
 [build-system]
 requires = ["poetry-core"]
