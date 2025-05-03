@@ -5,6 +5,7 @@ import pytest_asyncio
 from litestar import Litestar
 from litestar.testing import AsyncTestClient
 from users_core.models import Password, User
+from users_store.pg.exc import DuplicateUserKey, PasswordNotFound, UserNotFound
 
 from users_api.web.usecases import PasswordUsecase, UserUsecase
 
@@ -16,12 +17,32 @@ class MockUserRepository:
         }
 
     async def get_by_id(self, user_id: UUID) -> User:
-        return self.store[user_id]
+        try:
+            return self.store[user_id]
+        except KeyError:
+            raise UserNotFound
 
     async def create(self, user: User) -> None:
+        if any(
+            [
+                user.username == u.username or user.email == u.email
+                for u in self.store.values()
+            ]
+        ):
+            raise DuplicateUserKey
         self.store[user.id] = user
 
     async def update(self, user: User) -> None:
+        if user.id not in self.store:
+            raise UserNotFound
+        if any(
+            [
+                user.username == u.username or user.email == u.email
+                for u in self.store.values()
+                if u.id != user.id
+            ]
+        ):
+            raise DuplicateUserKey
         self.store[user.id] = user
 
     async def delete(self, user: User) -> None:
@@ -29,15 +50,19 @@ class MockUserRepository:
 
 
 class MockPasswordRepository:
-    def __init__(self, password: Password, *args, **kwargs):
-        self.store = {
-            password.user_id: password,
-        }
+    def __init__(self, user_repository: MockUserRepository, *args, **kwargs):
+        self.store = {}
+        self.user_repository = user_repository
 
     async def get_by_obj(self, obj: Password) -> Password:
-        return self.store[obj.user_id]
+        try:
+            return self.store[obj.user_id]
+        except KeyError:
+            raise PasswordNotFound
 
     async def create(self, password: Password) -> None:
+        if password.user_id not in self.user_repository.store:
+            raise UserNotFound
         self.store[password.user_id] = password
 
     async def delete(self, password: Password) -> None:
@@ -64,8 +89,8 @@ async def mock_password(mock_user):
 
 
 @pytest_asyncio.fixture()
-async def mock_password_repository(mock_password):
-    yield MockPasswordRepository(mock_password)
+async def mock_password_repository(mock_user_repository):
+    yield MockPasswordRepository(mock_user_repository)
 
 
 @pytest_asyncio.fixture(autouse=True)

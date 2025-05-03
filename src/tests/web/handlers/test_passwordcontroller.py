@@ -16,6 +16,28 @@ async def test_create_password(api_client: AsyncTestClient[Litestar], mock_user:
     assert response.status_code == HTTPStatus.CREATED
 
 
+@pytest.mark.parametrize(
+    argnames=("value",),
+    argvalues=(
+        ("Pass",),
+        ("pass@12345",),
+        ("PASS@12345",),
+        ("Pass12345",),
+        ("Password@",),
+    ),
+)
+@pytest.mark.asyncio
+async def test_create_invalid_password(
+    api_client: AsyncTestClient[Litestar], mock_user: User, value
+):
+    data = {"value": value}
+    response = await api_client.post(
+        url=f"/password/{mock_user.id}",
+        json=data,
+    )
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
 @pytest.mark.asyncio
 async def test_update_password(
     api_client: AsyncTestClient[Litestar], mock_user: User, mock_password: Password
